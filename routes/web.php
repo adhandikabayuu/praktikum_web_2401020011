@@ -1,15 +1,51 @@
 
 <?php
 
+use App\Http\Controllers\BukuController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| READ, PENCARIAN, DAN FILTER
+| HALAMAN UTAMA
 |--------------------------------------------------------------------------
 */
+
+Route::get('/', function () {
+    return redirect()->route('mahasiswa.index');
+});
+
+/*
+|--------------------------------------------------------------------------
+| CRUD BUKU PERPUSTAKAAN
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/buku', [BukuController::class, 'index'])
+    ->name('buku.index');
+
+Route::get('/buku/tambah', [BukuController::class, 'create'])
+    ->name('buku.create');
+
+Route::post('/buku', [BukuController::class, 'store'])
+    ->name('buku.store');
+
+Route::get('/buku/{buku}/edit', [BukuController::class, 'edit'])
+    ->name('buku.edit');
+
+Route::put('/buku/{buku}', [BukuController::class, 'update'])
+    ->name('buku.update');
+
+Route::delete('/buku/{buku}', [BukuController::class, 'destroy'])
+    ->name('buku.destroy');
+
+/*
+|--------------------------------------------------------------------------
+| READ, PENCARIAN, DAN FILTER MAHASISWA
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/mahasiswa', function (Request $request) {
     $kataKunci = trim((string) $request->query('q', ''));
     $programStudiId = $request->query('program_studi_id', '');
@@ -34,6 +70,7 @@ Route::get('/mahasiswa', function (Request $request) {
             )';
 
             $nilai = '%' . $kataKunci . '%';
+
             $parameter['kata_kunci_nim'] = $nilai;
             $parameter['kata_kunci_nama'] = $nilai;
             $parameter['kata_kunci_email'] = $nilai;
@@ -48,15 +85,16 @@ Route::get('/mahasiswa', function (Request $request) {
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute($parameter);
-        $daftarMahasiswa = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $daftarMahasiswa = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         $stmtProdi = $pdo->prepare(
             'SELECT id, nama_prodi
              FROM program_studi
              ORDER BY nama_prodi'
         );
+
         $stmtProdi->execute();
-        $daftarProgramStudi = $stmtProdi->fetchAll(PDO::FETCH_ASSOC);
+        $daftarProgramStudi = $stmtProdi->fetchAll(\PDO::FETCH_ASSOC);
 
         return view('mahasiswa', compact(
             'daftarMahasiswa',
@@ -68,25 +106,29 @@ Route::get('/mahasiswa', function (Request $request) {
         report($error);
 
         return response(
-            'Data tidak dapat dibaca. Periksa koneksi dan query.',
+            'Data mahasiswa tidak dapat dibaca. Periksa koneksi dan query.',
             500
         );
     }
 })->name('mahasiswa.index');
 
-
 /*
 |--------------------------------------------------------------------------
-| CREATE — DIPERTAHANKAN DARI PERTEMUAN 6
+| CREATE MAHASISWA
 |--------------------------------------------------------------------------
 */
+
 Route::post('/mahasiswa', function (Request $request) {
     $data = $request->validate([
         'nim' => ['required', 'string', 'max:20'],
         'nama' => ['required', 'string', 'max:100'],
         'email' => ['required', 'email', 'max:100'],
         'usia' => ['required', 'integer', 'min:15', 'max:100'],
-        'program_studi_id' => ['required', 'integer'],
+        'program_studi_id' => [
+            'required',
+            'integer',
+            'exists:program_studi,id',
+        ],
     ]);
 
     try {
@@ -96,6 +138,7 @@ Route::post('/mahasiswa', function (Request $request) {
             'SELECT COUNT(*) FROM mahasiswa
              WHERE nim = :nim OR email = :email'
         );
+
         $cek->execute([
             'nim' => $data['nim'],
             'email' => $data['email'],
@@ -111,8 +154,10 @@ Route::post('/mahasiswa', function (Request $request) {
         $simpan = $pdo->prepare(
             'INSERT INTO mahasiswa
              (nim, nama, email, usia, program_studi_id)
-             VALUES (:nim, :nama, :email, :usia, :program_studi_id)'
+             VALUES
+             (:nim, :nama, :email, :usia, :program_studi_id)'
         );
+
         $simpan->execute($data);
 
         return redirect()->route('mahasiswa.index')->with(
@@ -129,22 +174,24 @@ Route::post('/mahasiswa', function (Request $request) {
     }
 })->name('mahasiswa.store');
 
-
 /*
 |--------------------------------------------------------------------------
-| FORM EDIT
+| FORM EDIT MAHASISWA
 |--------------------------------------------------------------------------
 */
+
 Route::get('/mahasiswa/{id}/edit', function (int $id) {
     try {
         $pdo = DB::connection()->getPdo();
 
         $stmt = $pdo->prepare(
             'SELECT id, nim, nama, email, usia, program_studi_id
-             FROM mahasiswa WHERE id = :id'
+             FROM mahasiswa
+             WHERE id = :id'
         );
+
         $stmt->execute(['id' => $id]);
-        $mahasiswa = $stmt->fetch(PDO::FETCH_ASSOC);
+        $mahasiswa = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$mahasiswa) {
             return redirect()->route('mahasiswa.index')->with(
@@ -155,10 +202,12 @@ Route::get('/mahasiswa/{id}/edit', function (int $id) {
 
         $stmtProdi = $pdo->prepare(
             'SELECT id, nama_prodi
-             FROM program_studi ORDER BY nama_prodi'
+             FROM program_studi
+             ORDER BY nama_prodi'
         );
+
         $stmtProdi->execute();
-        $daftarProgramStudi = $stmtProdi->fetchAll(PDO::FETCH_ASSOC);
+        $daftarProgramStudi = $stmtProdi->fetchAll(\PDO::FETCH_ASSOC);
 
         return view('mahasiswa-edit', compact(
             'mahasiswa',
@@ -174,12 +223,12 @@ Route::get('/mahasiswa/{id}/edit', function (int $id) {
     }
 })->name('mahasiswa.edit');
 
-
 /*
 |--------------------------------------------------------------------------
-| UPDATE
+| UPDATE MAHASISWA
 |--------------------------------------------------------------------------
 */
+
 Route::put('/mahasiswa/{id}', function (
     Request $request,
     int $id
@@ -189,7 +238,11 @@ Route::put('/mahasiswa/{id}', function (
         'nama' => ['required', 'string', 'max:100'],
         'email' => ['required', 'email', 'max:100'],
         'usia' => ['required', 'integer', 'min:15', 'max:100'],
-        'program_studi_id' => ['required', 'integer'],
+        'program_studi_id' => [
+            'required',
+            'integer',
+            'exists:program_studi,id',
+        ],
     ]);
 
     try {
@@ -200,6 +253,7 @@ Route::put('/mahasiswa/{id}', function (
              WHERE (nim = :nim OR email = :email)
                AND id <> :id'
         );
+
         $cek->execute([
             'nim' => $data['nim'],
             'email' => $data['email'],
@@ -215,10 +269,14 @@ Route::put('/mahasiswa/{id}', function (
 
         $ubah = $pdo->prepare(
             'UPDATE mahasiswa
-             SET nim = :nim, nama = :nama, email = :email,
-                 usia = :usia, program_studi_id = :program_studi_id
+             SET nim = :nim,
+                 nama = :nama,
+                 email = :email,
+                 usia = :usia,
+                 program_studi_id = :program_studi_id
              WHERE id = :id'
         );
+
         $ubah->execute([
             'nim' => $data['nim'],
             'nama' => $data['nama'],
@@ -242,12 +300,12 @@ Route::put('/mahasiswa/{id}', function (
     }
 })->name('mahasiswa.update');
 
-
 /*
 |--------------------------------------------------------------------------
-| DELETE
+| DELETE MAHASISWA
 |--------------------------------------------------------------------------
 */
+
 Route::delete('/mahasiswa/{id}', function (int $id) {
     try {
         $pdo = DB::connection()->getPdo();
@@ -255,6 +313,7 @@ Route::delete('/mahasiswa/{id}', function (int $id) {
         $hapus = $pdo->prepare(
             'DELETE FROM mahasiswa WHERE id = :id'
         );
+
         $hapus->execute(['id' => $id]);
 
         if ($hapus->rowCount() === 0) {
