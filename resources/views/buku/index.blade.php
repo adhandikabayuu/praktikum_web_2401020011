@@ -1,46 +1,68 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <title>Daftar Buku</title>
 </head>
 <body>
+
     <h1>Daftar Buku</h1>
-    <p>Praktikum Pemrograman Web</p>
 
-    <form method="GET" action="{{ url('/buku') }}">
-        <p>
-            Cari judul
-            <input type="text" name="cari" value="{{ $cari }}">
+    <p>
+        <a href="{{ route('buku.create') }}">+ Tambah Buku</a>
+    </p>
+
+    @if (session('status'))
+        <p style="color: green;">
+            {{ session('status') }}
         </p>
-        <p>
-            <button type="submit">Cari</button>
-        </p>
-    </form>
+    @endif
 
-    <table border="1">
-        <tr>
-            <th>Kode</th>
-            <th>Judul</th>
-            <th>Detail</th>
-        </tr>
-
-        @foreach ($buku as $item)
+    <table border="1" cellpadding="10" cellspacing="0">
+        <thead>
             <tr>
-                <td>{{ $item['kode'] }}</td>
-                <td>{{ $item['judul'] }}</td>
-                <td>
-                    <a href="{{ url('/buku/'.$item['kode']) }}">
-                        Lihat
-                    </a>
-                </td>
+                <th>Kode</th>
+                <th>Judul Buku</th>
+                <th>Kategori</th>
+                <th>Aksi</th>
             </tr>
-        @endforeach
+        </thead>
+
+        <tbody>
+            @forelse ($bukus as $buku)
+                <tr>
+                    <td>{{ $buku->kode }}</td>
+                    <td>{{ $buku->judul }}</td>
+                    <td>{{ $buku->kategori->nama }}</td>
+                    <td>
+                        <a href="{{ route('buku.edit', $buku) }}">
+                            Ubah
+                        </a>
+
+                        <form
+                            action="{{ route('buku.destroy', $buku) }}"
+                            method="POST"
+                            style="display: inline;"
+                        >
+                            @csrf
+                            @method('DELETE')
+
+                            <button
+                                type="submit"
+                                onclick="return confirm('Yakin ingin menghapus buku ini?')"
+                            >
+                                Hapus
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="4">Belum ada data buku.</td>
+                </tr>
+            @endforelse
+        </tbody>
     </table>
 
-    @if (count($buku) === 0)
-        <p>Data buku tidak ditemukan.</p>
-    @endif
 </body>
 </html>

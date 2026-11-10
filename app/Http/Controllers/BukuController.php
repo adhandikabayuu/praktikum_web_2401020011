@@ -3,34 +3,85 @@
 namespace App\Http\Controllers;
 
 use App\Models\Buku;
+use App\Models\Kategori;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rule;
 
 class BukuController extends Controller
 {
-    public function index(Request $request): View
+    // Menampilkan seluruh data buku
+    public function index(): View
     {
-        $cari = trim((string) $request->query('cari', ''));
-
-        $buku = array_values(array_filter(
-            Buku::contoh(),
-            fn ($item) => $cari === '' ||
-                stripos($item['judul'], $cari) !== false
-        ));
-
-        return view('buku.index', compact('buku', 'cari'));
+        return view('buku.index', [
+            'bukus' => Buku::with('kategori')
+                ->orderBy('id')
+                ->get()
+        ]);
     }
 
-    public function show(string $kode): View
+    // Menampilkan form tambah buku
+    public function create(): View
     {
-        foreach (Buku::contoh() as $item) {
-            if ($item['kode'] === $kode) {
-                return view('buku.show', [
-                    'buku' => $item
-                ]);
-            }
-        }
+        return view('buku.form', [
+            'buku' => new Buku(),
+            'kategoris' => Kategori::orderBy('nama')->get()
+        ]);
+    }
 
-        abort(404);
+    // Menyimpan buku baru
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'kode' => ['required', 'max:10', 'unique:bukus,kode'],
+            'judul' => ['required', 'max:255'],
+            'kategori_id' => ['required', 'exists:kategoris,id'],
+        ]);
+
+        Buku::create($data);
+
+        return redirect()
+            ->route('buku.index')
+            ->with('status', 'Buku berhasil ditambahkan.');
+    }
+
+    // Menampilkan form edit buku
+    public function edit(Buku $buku): View
+    {
+        return view('buku.form', [
+            'buku' => $buku,
+            'kategoris' => Kategori::orderBy('nama')->get()
+        ]);
+    }
+
+    // Memperbarui data buku
+    public function update(Request $request, Buku $buku): RedirectResponse
+    {
+        $data = $request->validate([
+            'kode' => [
+                'required',
+                'max:10',
+                Rule::unique('bukus', 'kode')->ignore($buku->id)
+            ],
+            'judul' => ['required', 'max:255'],
+            'kategori_id' => ['required', 'exists:kategoris,id'],
+        ]);
+
+        $buku->update($data);
+
+        return redirect()
+            ->route('buku.index')
+            ->with('status', 'Buku berhasil diperbarui.');
+    }
+
+    // Menghapus data buku
+    public function destroy(Buku $buku): RedirectResponse
+    {
+        $buku->delete();
+
+        return redirect()
+            ->route('buku.index')
+            ->with('status', 'Buku berhasil dihapus.');
     }
 }
