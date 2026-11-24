@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -8,17 +9,21 @@
 
     <h1>Daftar Buku</h1>
 
-<p>Masuk sebagai {{ auth()->user()->name }}</p>
-
-<form method="POST" action="{{ route('logout') }}">
-    @csrf
-    <button type="submit">Keluar</button>
-</form>
-
-
     <p>
-        <a href="{{ route('buku.create') }}">+ Tambah Buku</a>
+        Masuk sebagai {{ auth()->user()->name }}
+        ({{ auth()->user()->role }})
     </p>
+
+    <form method="POST" action="{{ route('logout') }}">
+        @csrf
+        <button type="submit">Keluar</button>
+    </form>
+
+    @can('kelola-buku')
+        <p>
+            <a href="{{ route('buku.create') }}">+ Tambah Buku</a>
+        </p>
+    @endcan
 
     @if (session('status'))
         <p style="color: green;">
@@ -32,7 +37,10 @@
                 <th>Kode</th>
                 <th>Judul Buku</th>
                 <th>Kategori</th>
-                <th>Aksi</th>
+
+                @can('kelola-buku')
+                    <th>Aksi</th>
+                @endcan
             </tr>
         </thead>
 
@@ -42,27 +50,30 @@
                     <td>{{ $buku->kode }}</td>
                     <td>{{ $buku->judul }}</td>
                     <td>{{ $buku->kategori->nama }}</td>
-                    <td>
-                        <a href="{{ route('buku.edit', $buku) }}">
-                            Ubah
-                        </a>
 
-                        <form
-                            action="{{ route('buku.destroy', $buku) }}"
-                            method="POST"
-                            style="display: inline;"
-                        >
-                            @csrf
-                            @method('DELETE')
+                    @can('kelola-buku')
+                        <td>
+                            <a href="{{ route('buku.edit', $buku) }}">
+                                Ubah
+                            </a>
 
-                            <button
-                                type="submit"
-                                onclick="return confirm('Yakin ingin menghapus buku ini?')"
+                            <form
+                                action="{{ route('buku.destroy', $buku) }}"
+                                method="POST"
+                                style="display: inline;"
                             >
-                                Hapus
-                            </button>
-                        </form>
-                    </td>
+                                @csrf
+                                @method('DELETE')
+
+                                <button
+                                    type="submit"
+                                    onclick="return confirm('Yakin ingin menghapus buku ini?')"
+                                >
+                                    Hapus
+                                </button>
+                            </form>
+                        </td>
+                    @endcan
                 </tr>
             @empty
                 <tr>
